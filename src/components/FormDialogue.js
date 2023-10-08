@@ -1,3 +1,4 @@
+import { db } from "@/config/firebase/firestore";
 import { FormControl, InputLabel, MenuItem, Select } from "@mui/material";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
@@ -5,20 +6,27 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import TextField from "@mui/material/TextField";
+import { addDoc, collection, doc, updateDoc } from "firebase/firestore";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
 export default function FormDialog({ open, handleClose, editDetails }) {
+  const studentCollection = collection(db, "students");
+
   const {
     register,
     handleSubmit,
     setValue,
     reset,
     formState: { errors },
-  } = useForm();
+  } = useForm({
+    defaultValues: {
+      gender: "M",
+    },
+  });
+
   useEffect(() => {
     if (editDetails) {
-      console.log(editDetails.gender);
       setValue("name", editDetails.name);
       setValue("email", editDetails.email);
       setValue("gender", editDetails.gender);
@@ -26,8 +34,28 @@ export default function FormDialog({ open, handleClose, editDetails }) {
       setValue("gpa", editDetails.gpa);
     }
   }, [editDetails, setValue]);
-  const onSubmit = (data) => {
-    console.log(data);
+
+  const onSubmit = async (data) => {
+    try {
+      const details = {
+        name: data.name,
+        email: data.email,
+        gender: data.gender,
+        entry_age: data.age,
+        gpa: data.gpa,
+      };
+      if (editDetails?.id) {
+        const docRef = doc(db, "students", editDetails.id);
+        await updateDoc(docRef, details);
+      } else {
+        await addDoc(studentCollection, details);
+      }
+    } catch (err) {
+      alert("Error saving document");
+      console.log(err);
+    } finally {
+      handleClose();
+    }
     reset();
   };
 
@@ -40,9 +68,11 @@ export default function FormDialog({ open, handleClose, editDetails }) {
           reset();
         }}
       >
-        <DialogTitle>{editDetails ? "Edit" : "Add"} User</DialogTitle>
-        <DialogContent>
-          <form onSubmit={handleSubmit(onSubmit)}>
+        <DialogTitle sx={{ mb: 0 }}>
+          {editDetails?.name ? "Edit" : "Add"} User
+        </DialogTitle>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <DialogContent>
             <TextField
               autoFocus
               margin="dense"
@@ -83,6 +113,7 @@ export default function FormDialog({ open, handleClose, editDetails }) {
                 <MenuItem value={"F"}>Female</MenuItem>
               </Select>
             </FormControl>
+            {errors.gender && <span>This field is required</span>}
 
             {/* Age */}
             <TextField
@@ -107,14 +138,14 @@ export default function FormDialog({ open, handleClose, editDetails }) {
               variant="standard"
               {...register("gpa", { required: true })}
             />
-          </form>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose}>Cancel</Button>
-          <Button variant="contained" onClick={handleClose}>
-            Save
-          </Button>
-        </DialogActions>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleClose}>Cancel</Button>
+            <Button type="submit" variant="contained">
+              Save
+            </Button>
+          </DialogActions>
+        </form>
       </Dialog>
     </div>
   );

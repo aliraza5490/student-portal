@@ -20,7 +20,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { alpha } from "@mui/material/styles";
 import { visuallyHidden } from "@mui/utils";
-import { collection } from "firebase/firestore";
+import { collection, deleteDoc, doc } from "firebase/firestore";
 import PropTypes from "prop-types";
 import * as React from "react";
 import { useCollectionData } from "react-firebase-hooks/firestore";
@@ -158,7 +158,8 @@ EnhancedTableHead.propTypes = {
 };
 
 function EnhancedTableToolbar(props) {
-  const { numSelected, setFormOpen } = props;
+  const { selected, setFormOpen, setSelected } = props;
+  const numSelected = selected.length;
 
   return (
     <Toolbar
@@ -199,7 +200,21 @@ function EnhancedTableToolbar(props) {
 
       {numSelected > 0 ? (
         <>
-          <Tooltip title="Delete">
+          <Tooltip
+            title="Delete"
+            onClick={() => {
+              selected.forEach(async (id) => {
+                const docRef = doc(db, "students", id);
+                try {
+                  await deleteDoc(docRef);
+                } catch (error) {
+                  console.log(error);
+                  alert("Error deleting document");
+                }
+              });
+              setSelected([]);
+            }}
+          >
             <IconButton>
               <DeleteIcon />
             </IconButton>
@@ -220,7 +235,8 @@ function EnhancedTableToolbar(props) {
 }
 
 EnhancedTableToolbar.propTypes = {
-  numSelected: PropTypes.number.isRequired,
+  selected: PropTypes.array.isRequired,
+  setSelected: PropTypes.func.isRequired,
   setFormOpen: PropTypes.func.isRequired,
 };
 
@@ -251,7 +267,6 @@ export default function EnhancedTable() {
     if (students) {
       setRows(students);
     }
-    console.log(students);
   }, [students]);
 
   const handleRequestSort = (event, property) => {
@@ -262,19 +277,19 @@ export default function EnhancedTable() {
 
   const handleSelectAllClick = (event) => {
     if (event.target.checked) {
-      const newSelected = rows.map((n) => n.name);
+      const newSelected = rows.map((n) => n.id);
       setSelected(newSelected);
       return;
     }
     setSelected([]);
   };
 
-  const handleClick = (event, name) => {
-    const selectedIndex = selected.indexOf(name);
+  const handleClick = (event, id) => {
+    const selectedIndex = selected.indexOf(id);
     let newSelected = [];
 
     if (selectedIndex === -1) {
-      newSelected = newSelected.concat(selected, name);
+      newSelected = newSelected.concat(selected, id);
     } else if (selectedIndex === 0) {
       newSelected = newSelected.concat(selected.slice(1));
     } else if (selectedIndex === selected.length - 1) {
@@ -322,9 +337,14 @@ export default function EnhancedTable() {
     setFormOpen(true);
   };
 
-  const handleDelete = (row) => {
-    console.log("Delete");
-    console.log(row);
+  const handleDelete = async (row) => {
+    const docRef = doc(db, "students", row.id);
+    try {
+      await deleteDoc(docRef);
+    } catch (error) {
+      console.log(error);
+      alert("Error deleting document");
+    }
   };
 
   return (
@@ -332,7 +352,8 @@ export default function EnhancedTable() {
       <Paper sx={{ width: "100%", mb: 2 }}>
         <EnhancedTableToolbar
           setFormOpen={setFormOpen}
-          numSelected={selected.length}
+          selected={selected}
+          setSelected={setSelected}
         />
         <TableContainer>
           <Table
@@ -350,7 +371,7 @@ export default function EnhancedTable() {
             />
             <TableBody>
               {visibleRows.map((row, index) => {
-                const isItemSelected = isSelected(row.name);
+                const isItemSelected = isSelected(row.id);
                 const labelId = `enhanced-table-checkbox-${index}`;
 
                 return (
@@ -359,13 +380,13 @@ export default function EnhancedTable() {
                     role="checkbox"
                     aria-checked={isItemSelected}
                     tabIndex={-1}
-                    key={row.name}
+                    key={row.id}
                     selected={isItemSelected}
                     sx={{ cursor: "pointer" }}
                   >
                     <TableCell padding="checkbox">
                       <Checkbox
-                        onClick={(event) => handleClick(event, row.name)}
+                        onClick={(event) => handleClick(event, row.id)}
                         color="primary"
                         checked={isItemSelected}
                         inputProps={{
@@ -398,13 +419,26 @@ export default function EnhancedTable() {
                   </TableRow>
                 );
               })}
+              {visibleRows.length === 0 && (
+                <TableRow
+                  style={{
+                    height: (dense ? 33 : 53) * emptyRows,
+                  }}
+                >
+                  <TableCell colSpan={7}>
+                    <Typography variant="h6" align="center">
+                      No students
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              )}
               {emptyRows > 0 && (
                 <TableRow
                   style={{
                     height: (dense ? 33 : 53) * emptyRows,
                   }}
                 >
-                  <TableCell colSpan={6} />
+                  <TableCell colSpan={7} />
                 </TableRow>
               )}
             </TableBody>
