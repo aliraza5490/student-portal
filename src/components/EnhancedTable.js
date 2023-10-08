@@ -24,6 +24,7 @@ import { collection } from "firebase/firestore";
 import PropTypes from "prop-types";
 import * as React from "react";
 import { useCollectionData } from "react-firebase-hooks/firestore";
+import FormDialog from "./FormDialogue";
 
 function descendingComparator(a, b, orderBy) {
   if (b[orderBy] < a[orderBy]) {
@@ -80,7 +81,7 @@ const headCells = [
     id: "entry_age",
     numeric: true,
     disablePadding: false,
-    label: "Entry Age",
+    label: "Age",
   },
   {
     id: "gpa",
@@ -157,7 +158,7 @@ EnhancedTableHead.propTypes = {
 };
 
 function EnhancedTableToolbar(props) {
-  const { numSelected } = props;
+  const { numSelected, setFormOpen } = props;
 
   return (
     <Toolbar
@@ -205,7 +206,11 @@ function EnhancedTableToolbar(props) {
           </Tooltip>
         </>
       ) : (
-        <Button variant="contained" color="primary">
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => setFormOpen(true)}
+        >
           <AddIcon />
           Add
         </Button>
@@ -216,6 +221,7 @@ function EnhancedTableToolbar(props) {
 
 EnhancedTableToolbar.propTypes = {
   numSelected: PropTypes.number.isRequired,
+  setFormOpen: PropTypes.func.isRequired,
 };
 
 const converter = {
@@ -238,6 +244,9 @@ export default function EnhancedTable() {
     studentCollection.withConverter(converter)
   );
   const [rows, setRows] = React.useState([]);
+  const [formOpen, setFormOpen] = React.useState(false);
+  const [editDetails, setEditDetails] = React.useState({});
+
   React.useEffect(() => {
     if (students) {
       setRows(students);
@@ -309,8 +318,8 @@ export default function EnhancedTable() {
   );
 
   const handleEdit = (row) => {
-    console.log("Edit");
-    console.log(row);
+    setEditDetails(row);
+    setFormOpen(true);
   };
 
   const handleDelete = (row) => {
@@ -321,7 +330,10 @@ export default function EnhancedTable() {
   return (
     <Box sx={{ width: "100%" }}>
       <Paper sx={{ width: "100%", mb: 2 }}>
-        <EnhancedTableToolbar numSelected={selected.length} />
+        <EnhancedTableToolbar
+          setFormOpen={setFormOpen}
+          numSelected={selected.length}
+        />
         <TableContainer>
           <Table
             sx={{ minWidth: 750 }}
@@ -408,6 +420,16 @@ export default function EnhancedTable() {
           onRowsPerPageChange={handleChangeRowsPerPage}
         />
       </Paper>
+      {formOpen && (
+        <FormDialog
+          open={formOpen}
+          handleClose={() => {
+            setFormOpen(false);
+            setEditDetails({});
+          }}
+          editDetails={editDetails}
+        />
+      )}
     </Box>
   );
 }
