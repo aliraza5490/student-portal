@@ -1,3 +1,4 @@
+import { db } from "@/config/firebase/firestore";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -19,21 +20,10 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { alpha } from "@mui/material/styles";
 import { visuallyHidden } from "@mui/utils";
+import { collection } from "firebase/firestore";
 import PropTypes from "prop-types";
 import * as React from "react";
-
-function createData(name, email, dob, gender, entry_age, gpa) {
-  return {
-    name,
-    email,
-    dob,
-    gender,
-    entry_age,
-    gpa,
-  };
-}
-
-const rows = [createData("John", "jdoe@example.com", "01/1990", "M", 18, 3.5)];
+import { useCollectionData } from "react-firebase-hooks/firestore";
 
 function descendingComparator(a, b, orderBy) {
   if (b[orderBy] < a[orderBy]) {
@@ -79,12 +69,6 @@ const headCells = [
     numeric: false,
     disablePadding: false,
     label: "Email",
-  },
-  {
-    id: "dob",
-    numeric: false,
-    disablePadding: false,
-    label: "Date of Birth",
   },
   {
     id: "gender",
@@ -234,6 +218,14 @@ EnhancedTableToolbar.propTypes = {
   numSelected: PropTypes.number.isRequired,
 };
 
+const converter = {
+  toFirestore: (data) => data,
+  fromFirestore: (snap) => ({
+    id: snap.id,
+    ...snap.data(),
+  }),
+};
+
 export default function EnhancedTable() {
   const [order, setOrder] = React.useState("asc");
   const [orderBy, setOrderBy] = React.useState("name");
@@ -241,6 +233,17 @@ export default function EnhancedTable() {
   const [page, setPage] = React.useState(0);
   const [dense, setDense] = React.useState(false);
   const [rowsPerPage, setRowsPerPage] = React.useState(5);
+  const studentCollection = collection(db, "students");
+  const [students] = useCollectionData(
+    studentCollection.withConverter(converter)
+  );
+  const [rows, setRows] = React.useState([]);
+  React.useEffect(() => {
+    if (students) {
+      setRows(students);
+    }
+    console.log(students);
+  }, [students]);
 
   const handleRequestSort = (event, property) => {
     const isAsc = orderBy === property && order === "asc";
@@ -302,8 +305,18 @@ export default function EnhancedTable() {
         page * rowsPerPage,
         page * rowsPerPage + rowsPerPage
       ),
-    [order, orderBy, page, rowsPerPage]
+    [order, orderBy, page, rowsPerPage, rows]
   );
+
+  const handleEdit = (row) => {
+    console.log("Edit");
+    console.log(row);
+  };
+
+  const handleDelete = (row) => {
+    console.log("Delete");
+    console.log(row);
+  };
 
   return (
     <Box sx={{ width: "100%" }}>
@@ -358,16 +371,15 @@ export default function EnhancedTable() {
                       {row.name}
                     </TableCell>
                     <TableCell>{row.email}</TableCell>
-                    <TableCell>{row.dob}</TableCell>
                     <TableCell>{row.gender}</TableCell>
                     <TableCell align="right">{row.entry_age}</TableCell>
                     <TableCell align="right">{row.gpa}</TableCell>
 
                     <TableCell>
-                      <IconButton>
+                      <IconButton onClick={() => handleEdit(row)}>
                         <EditIcon />
                       </IconButton>
-                      <IconButton>
+                      <IconButton onClick={() => handleDelete(row)}>
                         <DeleteIcon />
                       </IconButton>
                     </TableCell>
